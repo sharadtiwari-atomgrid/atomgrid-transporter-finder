@@ -1,14 +1,13 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, 'dist');
-const sourceDir = path.join(__dirname, 'src');
+const dataDir = path.join(__dirname, 'src', 'data');
 const port = Number(process.env.PORT || 10000);
 
 const mimeTypes = {
@@ -18,23 +17,27 @@ const mimeTypes = {
   '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2'
 };
 
+const DATA_PARTS = ['part01.txt','part02.txt','part03.txt','part04.txt','part05.txt','part06.txt','part07.txt','part08.txt'];
 let indexHtmlPromise;
+let datasetJsonPromise;
+
+async function getDatasetJson() {
+  datasetJsonPromise ||= (async () => {
+    const chunks = await Promise.all(DATA_PARTS.map(file => readFile(path.join(dataDir, file), 'utf8')));
+    const json = chunks.join('');
+    const data = JSON.parse(json);
+    if (!data?.lanes?.length || !data?.transporters?.length) throw new Error('Historical PTL dataset is empty.');
+    console.log(`Historical dataset loaded: ${data.meta.rows} rows, ${data.meta.ptlShipments} PTL shipments, ${data.meta.lanes} lanes`);
+    return json;
+  })();
+  return datasetJsonPromise;
+}
 
 async function buildIndexHtml() {
-  const html = await readFile(path.join(publicDir, 'index.html'), 'utf8');
-  const source = await readFile(path.join(sourceDir, 'main.ts'), 'utf8');
-  const block = source.match(/const DATA_B64\s*=\s*\[((?:.|\n)*?)\]\.join\(''\);/s);
-  if (!block) throw new Error('Embedded historical dataset declaration not found in src/main.ts.');
-
-  const parts = [...block[1].matchAll(/'([^']*)'/g)].map(match => match[1]);
-  const base64 = parts.join('');
-  let datasetJson;
-  try {
-    datasetJson = gunzipSync(Buffer.from(base64, 'base64')).toString('utf8');
-    JSON.parse(datasetJson);
-  } catch (error) {
-    throw new Error(`Historical dataset decode failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  const [html, datasetJson] = await Promise.all([
+    readFile(path.join(publicDir, 'index.html'), 'utf8'),
+    getDatasetJson()
+  ]);
 
   const serialized = JSON.stringify(datasetJson).replace(/</g, '\\u003c');
   const shim = `<script>window.__ATOMGRID_DATA_JSON__=${serialized};window.DecompressionStream=class{constructor(format){if(format!=='gzip')throw new Error('Unsupported compression format');return new TransformStream({transform(){},flush(controller){controller.enqueue(new TextEncoder().encode(window.__ATOMGRID_DATA_JSON__));}})}};</script>`;
@@ -66,6 +69,10 @@ const server = createServer(async (req, res) => {
 
     if (!candidate.startsWith(publicDir)) {
       res.writeHead(403); res.end('Forbidden'); return;
+    }
+    if (requestPath === '/health') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('ok'); return;
     }
     if (requestPath === '/' || requestPath === '/index.html') { await serveIndex(res); return; }
     if (existsSync(candidate)) { await serveFile(res, candidate); return; }
