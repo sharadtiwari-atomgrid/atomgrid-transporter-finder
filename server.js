@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { gunzipSync } from 'node:zlib';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,18 +8,15 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, 'dist');
-const dataDir = path.join(__dirname, 'src', 'data');
+const dataFile = path.join(__dirname, 'src', 'data', 'data.gz.b64');
 const port = Number(process.env.PORT || 10000);
-const mimeTypes = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2' };
+const mimeTypes = { '.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.ico':'image/x-icon','.woff':'font/woff','.woff2':'font/woff2' };
 let dataPromise;
 
 async function loadDataset() {
   if (!dataPromise) dataPromise = (async () => {
-    const files = (await readdir(dataDir)).filter(name => /^part\d+\.txt$/i.test(name)).sort((a, b) => Number(a.match(/\d+/)?.[0]) - Number(b.match(/\d+/)?.[0]));
-    if (!files.length) throw new Error('Historical dataset parts not found.');
-    const chunks = await Promise.all(files.map(file => readFile(path.join(dataDir, file), 'utf8')));
-    const json = chunks.join('');
-    const data = JSON.parse(json);
+    const b64 = (await readFile(dataFile, 'utf8')).replace(/\s+/g, '');
+    const data = JSON.parse(gunzipSync(Buffer.from(b64, 'base64')).toString('utf8'));
     if (!data?.lanes?.length || !data?.transporters?.length) throw new Error('Historical dataset is empty.');
     return data;
   })();
@@ -52,5 +50,4 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }));
   }
 });
-
 server.listen(port, '0.0.0.0', () => console.log(`Atomgrid Transporter Finder listening on port ${port}`));
