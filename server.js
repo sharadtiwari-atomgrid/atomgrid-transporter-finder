@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { gunzipSync } from 'node:zlib';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,16 +8,16 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, 'dist');
-const dataDir = path.join(__dirname, 'src', 'data');
-const dataParts = ['part01.txt','part02.txt','part03.txt','part04.txt','part05.txt','part06.txt','part07.txt','part08.txt'].map(f => path.join(dataDir, f));
+const dataFile = path.join(__dirname, 'src', 'data', 'data.gz.b64.fixed');
 const port = Number(process.env.PORT || 10000);
 const mimeTypes = { '.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.ico':'image/x-icon','.woff':'font/woff','.woff2':'font/woff2' };
 let dataPromise;
 async function loadDataset() {
   if (!dataPromise) dataPromise = (async () => {
-    const chunks = await Promise.all(dataParts.map(f => readFile(f, 'utf8')));
-    const data = JSON.parse(chunks.join(''));
+    const b64 = (await readFile(dataFile, 'utf8')).replace(/\s+/g, '');
+    const data = JSON.parse(gunzipSync(Buffer.from(b64, 'base64')).toString('utf8'));
     if (!data?.lanes?.length || !data?.transporters?.length) throw new Error('Historical dataset is empty.');
+    if (data.meta?.ptlShipments !== 697) throw new Error(`Unexpected PTL shipment count: ${data.meta?.ptlShipments}`);
     return data;
   })();
   return dataPromise;
@@ -49,7 +50,7 @@ const server = createServer(async (req, res) => {
 });
 
 loadDataset().then(data => {
-  console.log(`Historical dataset ready: ${data.meta.ptlShipments} PTL shipments | ${data.transporters.length} transporter records | ${data.lanes.length} pincode lanes`);
+  console.log(`Historical dataset ready: ${data.meta.ptlShipments} PTL shipments | ${data.transporters.length} transporter records | ${data.lanes.length} lane records | ${data.meta.lanes} pincode lanes`);
   server.listen(port, '0.0.0.0', () => console.log(`Atomgrid Transporter Finder listening on port ${port}`));
 }).catch(error => {
   console.error('Historical dataset validation failed:', error);
