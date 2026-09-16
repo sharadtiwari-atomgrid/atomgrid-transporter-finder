@@ -47,4 +47,11 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }));
   }
 });
-server.listen(port, '0.0.0.0', () => console.log(`Atomgrid Transporter Finder listening on port ${port}`));
+
+loadDataset().then(data => {
+  console.log(`Historical dataset ready: ${data.meta.ptlShipments} PTL shipments | ${data.transporters.length} transporter records | ${data.lanes.length} pincode lanes`);
+  server.listen(port, '0.0.0.0', () => console.log(`Atomgrid Transporter Finder listening on port ${port}`));
+}).catch(error => {
+  console.error('Historical dataset validation failed:', error);
+  process.exit(1);
+});
