@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, 'dist');
-const dataFile = path.join(__dirname, 'src', 'data', 'data.gz.b64');
+const dataFile = path.join(__dirname, 'src', 'data', 'data.gz.b64.fixed');
 const port = Number(process.env.PORT || 10000);
 const mimeTypes = { '.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.ico':'image/x-icon','.woff':'font/woff','.woff2':'font/woff2' };
 let dataPromise;
