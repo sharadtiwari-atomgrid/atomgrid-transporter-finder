@@ -17,17 +17,15 @@ const mimeTypes = {
   '.gif': 'image/gif', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2'
 };
 
-const DATA_PARTS = ['part01.txt','part02.txt','part03.txt','part04.txt','part05.txt','part06.txt','part07.txt','part08.txt'];
 let indexHtmlPromise;
 let datasetJsonPromise;
 
 async function getDatasetJson() {
   datasetJsonPromise ||= (async () => {
-    const chunks = await Promise.all(DATA_PARTS.map(file => readFile(path.join(dataDir, file), 'utf8')));
-    const json = chunks.join('');
+    const json = await readFile(path.join(dataDir, 'part01.txt'), 'utf8');
     const data = JSON.parse(json);
     if (!data?.lanes?.length || !data?.transporters?.length) throw new Error('Historical PTL dataset is empty.');
-    console.log(`Historical dataset loaded: ${data.meta.rows} rows, ${data.meta.ptlShipments} PTL shipments, ${data.meta.lanes} lanes`);
+    console.log(`Historical dataset loaded: ${data.meta.rows} rows, ${data.meta.ptlShipments} PTL shipments, ${data.meta.lanes} lanes, ${data.lanes.length} lane-transporter records`);
     return json;
   })();
   return datasetJsonPromise;
