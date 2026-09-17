@@ -26,37 +26,71 @@ const mime = {
 let datasetPromise;
 
 function readCompressedJson(file) {
-  return readFile(file, 'utf8')
-    .then((b64) => JSON.parse(gunzipSync(Buffer.from(b64.replace(/\s+/g, ''), 'base64')).toString('utf8')));
+  return readFile(file, 'utf8').then((b64) => {
+    const cleaned = b64.replace(/\s+/g, '');
+    const text = gunzipSync(Buffer.from(cleaned, 'base64')).toString('utf8');
+    return JSON.parse(text);
+  });
+}
+
+function asArray(raw, names = []) {
+  if (Array.isArray(raw)) return raw;
+  for (const name of names) {
+    if (Array.isArray(raw?.[name])) return raw[name];
+  }
+  throw new Error('Canonical data payload does not contain an array');
+}
+
+function pick(obj, keys, fallback = null) {
+  for (const key of keys) {
+    if (obj?.[key] !== undefined && obj?.[key] !== null) return obj[key];
+  }
+  return fallback;
 }
 
 function normalizeTransporters(raw) {
-  return raw.map((t) => ({
-    name: String(t.name ?? '').trim(),
-    shipments: Number(t.shipments ?? 0),
+  return asArray(raw, ['transporters', 'data']).map((t) => ({
+    name: String(pick(t, ['name', 'n'], '')).trim(),
+    shipments: Number(pick(t, ['shipments', 's'], 0)),
+    avg_qty_kg: pick(t, ['avg_qty_kg', 'aq']),
+    min_qty_kg: pick(t, ['min_qty_kg', 'mn']),
+    max_qty_kg: pick(t, ['max_qty_kg', 'mx']),
+    avg_tat_days: pick(t, ['avg_tat_days', 'tat']),
+    median_tat_days: pick(t, ['median_tat_days', 'mtat']),
+    avg_distance_km: pick(t, ['avg_distance_km', 'd', 'km']),
+    last_used: pick(t, ['last_used', 'lu'])
+  })).map((t) => ({
+    ...t,
     avg_qty_kg: t.avg_qty_kg == null ? null : Number(t.avg_qty_kg),
     min_qty_kg: t.min_qty_kg == null ? null : Number(t.min_qty_kg),
     max_qty_kg: t.max_qty_kg == null ? null : Number(t.max_qty_kg),
     avg_tat_days: t.avg_tat_days == null ? null : Number(t.avg_tat_days),
-    median_tat_days: null,
-    avg_distance_km: t.avg_distance_km == null ? null : Number(t.avg_distance_km),
-    last_used: t.last_used ?? null
+    median_tat_days: t.median_tat_days == null ? null : Number(t.median_tat_days),
+    avg_distance_km: t.avg_distance_km == null ? null : Number(t.avg_distance_km)
   })).filter((t) => t.name);
 }
 
 function normalizeLanes(raw) {
-  return raw.map((l) => ({
-    pickup: String(l.pickup ?? '').padStart(6, '0'),
-    delivery: String(l.delivery ?? '').padStart(6, '0'),
-    transporter: String(l.transporter ?? '').trim(),
-    shipments: Number(l.shipments ?? 0),
+  return asArray(raw, ['lanes', 'data']).map((l) => ({
+    pickup: String(pick(l, ['pickup', 'p', 'o'], '')).padStart(6, '0'),
+    delivery: String(pick(l, ['delivery', 'd', 'dest'], '')).padStart(6, '0'),
+    transporter: String(pick(l, ['transporter', 't'], '')).trim(),
+    shipments: Number(pick(l, ['shipments', 's'], 0)),
+    avg_qty_kg: pick(l, ['avg_qty_kg', 'aq']),
+    min_qty_kg: pick(l, ['min_qty_kg', 'mn']),
+    max_qty_kg: pick(l, ['max_qty_kg', 'mx']),
+    avg_tat_days: pick(l, ['avg_tat_days', 'tat']),
+    median_tat_days: pick(l, ['median_tat_days', 'mtat']),
+    avg_distance_km: pick(l, ['avg_distance_km', 'km']),
+    last_used: pick(l, ['last_used', 'lu'])
+  })).map((l) => ({
+    ...l,
     avg_qty_kg: l.avg_qty_kg == null ? null : Number(l.avg_qty_kg),
     min_qty_kg: l.min_qty_kg == null ? null : Number(l.min_qty_kg),
     max_qty_kg: l.max_qty_kg == null ? null : Number(l.max_qty_kg),
     avg_tat_days: l.avg_tat_days == null ? null : Number(l.avg_tat_days),
-    median_tat_days: null,
-    avg_distance_km: l.avg_distance_km == null ? null : Number(l.avg_distance_km),
-    last_used: l.last_used ?? null
+    median_tat_days: l.median_tat_days == null ? null : Number(l.median_tat_days),
+    avg_distance_km: l.avg_distance_km == null ? null : Number(l.avg_distance_km)
   })).filter((l) => /^\d{6}$/.test(l.pickup) && /^\d{6}$/.test(l.delivery) && l.transporter);
 }
 
@@ -97,7 +131,7 @@ async function loadDataset() {
       if (!data.transporters.length) throw new Error('Canonical transporter aggregate is empty');
       if (!data.lanes.length) throw new Error('Canonical lane aggregate is empty');
 
-      console.log(`Canonical PTL repository ready: ${data.meta.ptl_shipments} PTL shipments | ${data.transporters.length} transporters | ${data.meta.exact_pincode_lanes} pincode pairs | ${data.meta.transporter_lane_combinations} transporter-lane records`);
+      console.log(`Canonical PTL repository ready: ${data.meta.ptl_shipments} PTL shipments | ${data.transporters.length} transporters | ${data.meta.exact_pincode_lanes} pincode pairs | ${data.meta.transporter_lane_combinations} transporter-lane records | ${data.meta.usable_ptl_shipments} pincode-observed shipments`);
       return data;
     })();
   }
