@@ -1,22 +1,21 @@
 {
-  "name": "atomgrid-transporter-finder",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "start": "node server.js"
+  "name":"atomgrid-transporter-finder",
+  "private":true,
+  "version":"2.0.0",
+  "type":"module",
+  "scripts":{
+    "dev":"npm --prefix fresh run dev",
+    "build":"npm --prefix fresh install && npm --prefix fresh run build",
+    "start":"node server.js"
   },
-  "dependencies": {
-    "lucide": "^0.469.0"
+  "dependencies":{
+    "lucide":"^0.469.0"
   },
-  "devDependencies": {
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0",
-    "tailwindcss": "^3.4.0",
-    "typescript": "^5.7.0",
-    "vite": "^6.0.0"
+  "devDependencies":{
+    "autoprefixer":"^10.4.0",
+    "postcss":"^8.4.0",
+    "tailwindcss":"^3.4.0",
+    "typescript":"^5.7.0",
+    "vite":"^6.0.0"
   }
 }
