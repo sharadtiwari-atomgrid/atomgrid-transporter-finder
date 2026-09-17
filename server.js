@@ -83,6 +83,18 @@ async function sendFile(res, file) {
 const server = createServer(async (req, res) => {
   try {
     const url = decodeURIComponent((req.url || '/').split('?')[0]);
+    if (url === '/api/health') {
+      try {
+        const data = await loadDataset();
+        res.writeHead(200, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' });
+        res.end(JSON.stringify({ status:'ok', dataset:'ready', meta:data.meta }));
+      } catch (error) {
+        console.error('Transporter Finder health check failed:', error);
+        res.writeHead(503, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' });
+        res.end(JSON.stringify({ status:'degraded', dataset:'unavailable', error:error instanceof Error ? error.message : String(error) }));
+      }
+      return;
+    }
     if (url === '/api/data') {
       const data = await loadDataset();
       res.writeHead(200, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store' });
@@ -107,4 +119,12 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(port, '0.0.0.0', () => console.log(`Atomgrid Transporter Finder listening on ${port}`));
+server.listen(port, '0.0.0.0', async () => {
+  console.log(`Atomgrid Transporter Finder listening on ${port}`);
+  try {
+    await loadDataset();
+    console.log('Startup dataset validation passed');
+  } catch (error) {
+    console.error('Startup dataset validation failed:', error);
+  }
+});
