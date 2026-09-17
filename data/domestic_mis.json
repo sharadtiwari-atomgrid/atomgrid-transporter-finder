@@ -1,1 +1,18 @@
-{"meta":{"source_file":"Domestic MIS FY 2026-27 - Domestics MIS (8).csv","source_rows":32070,"ptl_shipments":697,"ptl_with_exact_pincodes":682,"transporters":77,"exact_pincode_lanes":284,"transporter_lane_combinations":409,"updated_at":"2026-09-17"},"transporters":[],"lanes":[],"shipments":[],"_note":"Canonical PTL dataset built from the provided Domestic MIS. PTL = Vehicle type = PTL. Pincode fields are extracted from pickup/drop addresses when a valid 6-digit pincode is present."}
+{
+  "repository": "Atomgrid canonical PTL history",
+  "source_file": "Domestic MIS FY 2026-27 - Domestics MIS (8).csv",
+  "updated_at": "2026-09-17",
+  "meta": {
+    "source_rows": 32070,
+    "ptl_shipments": 697,
+    "ptl_with_exact_pincodes": 682,
+    "transporters": 77,
+    "exact_pincode_pairs": 284,
+    "transporter_lane_combinations": 409
+  },
+  "files": {
+    "lanes": "ptl_lanes.json.gz.b64",
+    "transporters": "ptl_transporters.json.gz.b64"
+  },
+  "readme": "The canonical PTL dataset is stored as two gzip+base64 JSON payloads so Render can load the complete dataset reliably without the earlier fragmented JSON issue."
+}
