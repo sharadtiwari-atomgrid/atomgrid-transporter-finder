@@ -1,0 +1,13 @@
+import { createServer } from 'node:http';
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename=fileURLToPath(import.meta.url);const __dirname=path.dirname(__filename);const publicDir=path.join(__dirname,'dist');const sourceDir=path.join(__dirname,'..','src','data');const port=Number(process.env.PORT||10000);
+const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.ico':'image/x-icon'};
+let datasetPromise;
+async function loadDataset(){if(!datasetPromise)datasetPromise=(async()=>{const files=(await readdir(sourceDir)).filter(n=>/^part\d+\.txt$/.test(n)).sort((a,b)=>Number(a.match(/\d+/)[0])-Number(b.match(/\d+/)[0]));if(!files.length)throw new Error('No dataset parts found');const text=(await Promise.all(files.map(f=>readFile(path.join(sourceDir,f),'utf8')))).join('');const data=JSON.parse(text);if(!data?.lanes?.length)throw new Error('Dataset contains no lanes');console.log(`Dataset ready from ${files.length} parts: ${data.meta?.ptlShipments||0} PTL shipments, ${data.meta?.transporters||0} transporters, ${data.meta?.exact_pincode_lanes||data.meta?.lanes||0} lanes`);return data})();return datasetPromise}
+async function send(res,file){const body=await readFile(file);res.writeHead(200,{'Content-Type':mime[path.extname(file).toLowerCase()]||'application/octet-stream','Cache-Control':path.extname(file)==='.html'?'no-cache':'public,max-age=300'});res.end(body)}
+const server=createServer(async(req,res)=>{try{const u=decodeURIComponent((req.url||'/').split('?')[0]);if(u==='/api/data'){const data=await loadDataset();res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));return}const request=u==='/'?'/index.html':u;const file=path.normalize(path.join(publicDir,request));if(!file.startsWith(publicDir)){res.writeHead(403);return res.end('Forbidden')}if(existsSync(file)&&(await stat(file)).isFile())return send(res,file);return send(res,path.join(publicDir,'index.html'))}catch(e){console.error(e);res.writeHead(500,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify({error:String(e?.message||e)}))}});
+server.listen(port,'0.0.0.0',()=>console.log(`Atomgrid Transporter Finder V2 listening on ${port}`));
